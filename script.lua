@@ -1,7 +1,7 @@
 --[[
 
-	Universal Aimbot Module by parsher © CC0 1.0 Universal (2025)
-	https://github.com/parsherr
+	Universal Aimbot Module by Exunys © CC0 1.0 Universal (2023 - 2024)
+	https://github.com/Exunys
 
 ]]
 
@@ -329,50 +329,87 @@ local GetClosestPlayer = function()
 
 			if Value ~= LocalPlayer and not tablefind(Environment.Blacklisted, __index(Value, "Name")) and Character and FindFirstChild(Character, LockPart) and Humanoid and LocalCharacter then
 				-- Team Check kontrolü
-				if GUI.TeamCheckEnabled then
-					if PlayerTeam and LocalCharacter:FindFirstChild("Team") and PlayerTeam.Value == LocalCharacter:FindFirstChild("Team").Value then
+				if GUI.TeamCheckEnabled and PlayerTeam and LocalCharacter:FindFirstChild("Team") then
+					if PlayerTeam.Value == LocalCharacter:FindFirstChild("Team").Value then
 						continue
 					end
 				end
 
-				local PartPosition, TeamCheckOption = __index(Character[LockPart], "Position"), Environment.DeveloperSettings.TeamCheckOption
+				local PartPosition = __index(Character[LockPart], "Position")
+				local Vector = WorldToViewportPoint(Camera, PartPosition)
+				local Distance = (GetMouseLocation(UserInputService) - ConvertVector(Vector)).Magnitude
 
-				if Settings.TeamCheck and __index(Value, TeamCheckOption) == __index(LocalPlayer, TeamCheckOption) then
-					continue
-				end
-
-				if Settings.AliveCheck and __index(Humanoid, "Health") <= 0 then
-					continue
-				end
-
-				if Settings.WallCheck then
-					local BlacklistTable = GetDescendants(__index(LocalPlayer, "Character"))
-
-					for _, Value in next, GetDescendants(Character) do
-						BlacklistTable[#BlacklistTable + 1] = Value
-					end
-
-					if #GetPartsObscuringTarget(Camera, {PartPosition}, BlacklistTable) > 0 then
-						continue
-					end
-				end
-
-				local Vector, OnScreen, Distance = WorldToViewportPoint(Camera, PartPosition)
-				Vector = ConvertVector(Vector)
-				Distance = (GetMouseLocation(UserInputService) - Vector).Magnitude
-
-				if Distance < RequiredDistance and OnScreen then
-					RequiredDistance, Environment.Locked = Distance, Value
+				if Distance < RequiredDistance and Vector.Z > 0 then
+					RequiredDistance = Distance
+					Environment.Locked = Value
 				end
 			end
 		end
-	elseif (GetMouseLocation(UserInputService) - ConvertVector(WorldToViewportPoint(Camera, __index(__index(__index(Environment.Locked, "Character"), LockPart), "Position")))).Magnitude > RequiredDistance then
-		CancelLock()
+	elseif Environment.Locked then
+		local Character = __index(Environment.Locked, "Character")
+		if Character then
+			local LockPartObject = FindFirstChild(Character, LockPart)
+			if LockPartObject then
+				local PartPosition = __index(LockPartObject, "Position")
+				local Vector = WorldToViewportPoint(Camera, PartPosition)
+				
+				-- Hedef görüş dışına çıktıysa veya team check açıkken aynı takımdaysa kilidi kaldır
+				if Vector.Z < 0 or (GUI.TeamCheckEnabled and Character:FindFirstChild("Team") and LocalPlayer.Character:FindFirstChild("Team") and Character.Team.Value == LocalPlayer.Character.Team.Value) then
+					CancelLock()
+				end
+			else
+				CancelLock()
+			end
+		else
+			CancelLock()
+		end
 	end
+end
+
+local function StartESP()
+	-- Eski bağlantıyı temizle
+	if ServiceConnections.ESPConnection then
+		ServiceConnections.ESPConnection:Disconnect()
+	end
+	
+	-- Yeni ESP bağlantısı
+	ServiceConnections.ESPConnection = RunService.RenderStepped:Connect(function()
+		UpdateESP()
+	end)
 end
 
 local Load = function()
 	OriginalSensitivity = __index(UserInputService, "MouseDeltaSensitivity")
+	
+	-- GUI'yi oluştur
+	if not game.CoreGui:FindFirstChild("AimbotGUI") then
+		local ScreenGui = Instancenew("ScreenGui")
+		ScreenGui.Name = "AimbotGUI"
+		ScreenGui.Parent = game.CoreGui
+
+		local Frame = Instancenew("Frame")
+		Frame.Size = UDim2.new(0, 200, 0, 100)
+		Frame.Position = UDim2.new(0.8, 0, 0.5, 0)
+		Frame.BackgroundColor3 = Color3fromRGB(30, 30, 30)
+		Frame.BorderSizePixel = 0
+		Frame.Parent = ScreenGui
+
+		local TeamCheckButton = Instancenew("TextButton")
+		TeamCheckButton.Size = UDim2.new(0.8, 0, 0.3, 0)
+		TeamCheckButton.Position = UDim2.new(0.1, 0, 0.1, 0)
+		TeamCheckButton.BackgroundColor3 = Color3fromRGB(40, 40, 40)
+		TeamCheckButton.Text = "Team Check: ON"
+		TeamCheckButton.TextColor3 = Color3fromRGB(255, 255, 255)
+		TeamCheckButton.Parent = Frame
+
+		TeamCheckButton.MouseButton1Click:Connect(function()
+			GUI.TeamCheckEnabled = not GUI.TeamCheckEnabled
+			TeamCheckButton.Text = "Team Check: " .. (GUI.TeamCheckEnabled and "ON" or "OFF")
+		end)
+	end
+
+	-- ESP'yi başlat
+	StartESP()
 
 	local Settings, FOVCircle, FOVCircleOutline, FOVSettings, Offset = Environment.Settings, Environment.FOVCircle, Environment.FOVCircleOutline, Environment.FOVSettings
 
@@ -483,14 +520,23 @@ end)
 
 --// Functions
 
-function Environment.Exit(self) -- METHOD | ExunysDeveloperAimbot:Exit(<void>)
+function Environment.Exit(self)
 	assert(self, "EXUNYS_AIMBOT-V3.Exit: Missing parameter #1 \"self\" <table>.")
 
+	-- Bağlantıları temizle
 	for Index, _ in next, ServiceConnections do
 		Disconnect(ServiceConnections[Index])
 	end
 
-	Load = nil; ConvertVector = nil; CancelLock = nil; GetClosestPlayer = nil; GetRainbowColor = nil; FixUsername = nil
+	-- GUI'yi temizle
+	if game.CoreGui:FindFirstChild("AimbotGUI") then
+		game.CoreGui.AimbotGUI:Destroy()
+	end
+
+	-- BeamFolder'ı temizle
+	if BeamFolder then
+		BeamFolder:Destroy()
+	end
 
 	self.FOVCircle:Remove()
 	self.FOVCircleOutline:Remove()
