@@ -160,7 +160,11 @@ local function CreateBeam(target)
 end
 
 local function CleanBeams()
-	BeamFolder:ClearAllChildren()
+	for _, child in pairs(BeamFolder:GetChildren()) do
+		if child:IsA("Beam") or child:IsA("Attachment") then
+			child:Destroy()
+		end
+	end
 end
 
 --[[
@@ -292,23 +296,21 @@ local function UpdateESP()
 	CleanBeams()
 	UpdateScreenBeamPosition()
 
-	for _, Value in next, GetPlayers(Players) do
-		local Character = __index(Value, "Character")
-		local Humanoid = Character and FindFirstChildOfClass(Character, "Humanoid")
-		local PlayerTeam = Character and Character:FindFirstChild("Team")
-		local LocalCharacter = __index(LocalPlayer, "Character")
+	for _, player in pairs(game.Players:GetPlayers()) do
+		if player ~= game.Players.LocalPlayer then
+			local character = player.Character
+			if character and character:FindFirstChild("Head") then
+				local localTeam = game.Players.LocalPlayer.Character and game.Players.LocalPlayer.Character:FindFirstChild("Team")
+				local playerTeam = character:FindFirstChild("Team")
 
-		if Value ~= LocalPlayer and Character and Humanoid and LocalCharacter then
-			-- Team Check kontrolü
-			if GUI.TeamCheckEnabled then
-				if PlayerTeam and LocalCharacter:FindFirstChild("Team") and PlayerTeam.Value == LocalCharacter:FindFirstChild("Team").Value then
-					continue
+				-- Team Check kontrolü
+				if GUI.TeamCheckEnabled then
+					if localTeam and playerTeam and localTeam.Value == playerTeam.Value then
+						continue
+					end
 				end
-			end
 
-			local targetHead = Character:FindFirstChild("Head")
-			if targetHead then
-				CreateBeam(targetHead)
+				CreateBeam(character.Head)
 			end
 		end
 	end
