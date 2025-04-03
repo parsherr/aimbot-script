@@ -1,7 +1,7 @@
 --[[
 
-	Universal Aimbot Module by Exunys © CC0 1.0 Universal (2023 - 2024)
-	https://github.com/Exunys
+	Universal Aimbot Module by parsher © CC0 1.0 Universal (2025)
+	https://github.com/parsherr
 
 ]]
 
@@ -60,12 +60,93 @@ local BeamFolder = Instancenew("Folder")
 BeamFolder.Name = "ESP_Beams"
 BeamFolder.Parent = workspace
 
-local function CreateBeam(origin, target)
+local ScreenBeamPart = Instancenew("Part")
+ScreenBeamPart.Anchored = true
+ScreenBeamPart.CanCollide = false
+ScreenBeamPart.Transparency = 1
+ScreenBeamPart.Size = Vector3.new(1, 1, 1)
+ScreenBeamPart.Parent = BeamFolder
+
+local GUI = {
+	TeamCheckEnabled = true -- Varsayılan olarak açık
+}
+
+-- GUI oluştur
+local ScreenGui = Instancenew("ScreenGui")
+ScreenGui.Name = "AimbotGUI"
+ScreenGui.Parent = game.CoreGui
+
+local Frame = Instancenew("Frame")
+Frame.Size = UDim2.new(0, 200, 0, 100)
+Frame.Position = UDim2.new(0.8, 0, 0.5, 0)
+Frame.BackgroundColor3 = Color3fromRGB(30, 30, 30)
+Frame.BorderSizePixel = 0
+Frame.Parent = ScreenGui
+
+local TeamCheckButton = Instancenew("TextButton")
+TeamCheckButton.Size = UDim2.new(0.8, 0, 0.3, 0)
+TeamCheckButton.Position = UDim2.new(0.1, 0, 0.1, 0)
+TeamCheckButton.BackgroundColor3 = Color3fromRGB(40, 40, 40)
+TeamCheckButton.Text = "Team Check: ON"
+TeamCheckButton.TextColor3 = Color3fromRGB(255, 255, 255)
+TeamCheckButton.Parent = Frame
+
+-- Toggle fonksiyonu
+TeamCheckButton.MouseButton1Click:Connect(function()
+	GUI.TeamCheckEnabled = not GUI.TeamCheckEnabled
+	TeamCheckButton.Text = "Team Check: " .. (GUI.TeamCheckEnabled and "ON" or "OFF")
+end)
+
+-- Sürükleme özelliği
+local dragging
+local dragInput
+local dragStart
+local startPos
+
+local function update(input)
+	local delta = input.Position - dragStart
+	Frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+end
+
+Frame.InputBegan:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 then
+		dragging = true
+		dragStart = input.Position
+		startPos = Frame.Position
+	end
+end)
+
+Frame.InputChanged:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseMovement then
+		dragInput = input
+	end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+	if input == dragInput and dragging then
+		update(input)
+	end
+end)
+
+UserInputService.InputEnded:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 then
+		dragging = false
+	end
+end)
+
+local function UpdateScreenBeamPosition()
+	local viewportSize = Camera.ViewportSize
+	local screenPosition = Vector2new(viewportSize.X / 2, viewportSize.Y)
+	local worldPosition = Camera:ScreenPointToWorld(screenPosition.X, screenPosition.Y, 10)
+	ScreenBeamPart.Position = worldPosition
+end
+
+local function CreateBeam(target)
 	local attachment0 = Instancenew("Attachment")
 	local attachment1 = Instancenew("Attachment")
 	local beam = Instancenew("Beam")
 	
-	attachment0.Parent = origin
+	attachment0.Parent = ScreenBeamPart
 	attachment1.Parent = target
 	
 	beam.Attachment0 = attachment0
@@ -207,11 +288,35 @@ local CancelLock = function()
 	end
 end
 
+local function UpdateESP()
+	CleanBeams()
+	UpdateScreenBeamPosition()
+
+	for _, Value in next, GetPlayers(Players) do
+		local Character = __index(Value, "Character")
+		local Humanoid = Character and FindFirstChildOfClass(Character, "Humanoid")
+		local PlayerTeam = Character and Character:FindFirstChild("Team")
+		local LocalCharacter = __index(LocalPlayer, "Character")
+
+		if Value ~= LocalPlayer and Character and Humanoid and LocalCharacter then
+			-- Team Check kontrolü
+			if GUI.TeamCheckEnabled then
+				if PlayerTeam and LocalCharacter:FindFirstChild("Team") and PlayerTeam.Value == LocalCharacter:FindFirstChild("Team").Value then
+					continue
+				end
+			end
+
+			local targetHead = Character:FindFirstChild("Head")
+			if targetHead then
+				CreateBeam(targetHead)
+			end
+		end
+	end
+end
+
 local GetClosestPlayer = function()
 	local Settings = Environment.Settings
 	local LockPart = Settings.LockPart
-
-	CleanBeams()
 
 	if not Environment.Locked then
 		RequiredDistance = Environment.FOVSettings.Enabled and Environment.FOVSettings.Radius or 2000
@@ -223,17 +328,11 @@ local GetClosestPlayer = function()
 			local LocalCharacter = __index(LocalPlayer, "Character")
 
 			if Value ~= LocalPlayer and not tablefind(Environment.Blacklisted, __index(Value, "Name")) and Character and FindFirstChild(Character, LockPart) and Humanoid and LocalCharacter then
-				-- Eğer oyuncu bizimle aynı takımdaysa, atla
-				if PlayerTeam and LocalCharacter:FindFirstChild("Team") and PlayerTeam.Value == LocalCharacter:FindFirstChild("Team").Value then
-					continue
-				end
-
-				-- Beam oluştur
-				local myHead = LocalCharacter:FindFirstChild("Head")
-				local targetHead = Character:FindFirstChild("Head")
-				
-				if myHead and targetHead then
-					CreateBeam(myHead, targetHead)
+				-- Team Check kontrolü
+				if GUI.TeamCheckEnabled then
+					if PlayerTeam and LocalCharacter:FindFirstChild("Team") and PlayerTeam.Value == LocalCharacter:FindFirstChild("Team").Value then
+						continue
+					end
 				end
 
 				local PartPosition, TeamCheckOption = __index(Character[LockPart], "Position"), Environment.DeveloperSettings.TeamCheckOption
@@ -368,6 +467,8 @@ local Load = function()
 			CancelLock()
 		end
 	end)
+
+	ServiceConnections.ESPUpdateConnection = Connect(__index(RunService, "RenderStepped"), UpdateESP)
 end
 
 --// Typing Check
