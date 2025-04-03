@@ -38,6 +38,7 @@ local RunService = GetService(game, "RunService")
 local UserInputService = GetService(game, "UserInputService")
 local TweenService = GetService(game, "TweenService")
 local Players = GetService(game, "Players")
+local CoreGui = game:GetService("CoreGui")
 
 --// Service Methods
 
@@ -68,71 +69,168 @@ ScreenBeamPart.Size = Vector3.new(1, 1, 1)
 ScreenBeamPart.Parent = BeamFolder
 
 local GUI = {
-	TeamCheckEnabled = true -- Varsayılan olarak açık
+	TeamCheckEnabled = true,
+	ESPEnabled = true
 }
 
--- GUI oluştur
-local ScreenGui = Instancenew("ScreenGui")
-ScreenGui.Name = "AimbotGUI"
-ScreenGui.Parent = game.CoreGui
-
-local Frame = Instancenew("Frame")
-Frame.Size = UDim2.new(0, 200, 0, 100)
-Frame.Position = UDim2.new(0.8, 0, 0.5, 0)
-Frame.BackgroundColor3 = Color3fromRGB(30, 30, 30)
-Frame.BorderSizePixel = 0
-Frame.Parent = ScreenGui
-
-local TeamCheckButton = Instancenew("TextButton")
-TeamCheckButton.Size = UDim2.new(0.8, 0, 0.3, 0)
-TeamCheckButton.Position = UDim2.new(0.1, 0, 0.1, 0)
-TeamCheckButton.BackgroundColor3 = Color3fromRGB(40, 40, 40)
-TeamCheckButton.Text = "Team Check: ON"
-TeamCheckButton.TextColor3 = Color3fromRGB(255, 255, 255)
-TeamCheckButton.Parent = Frame
-
--- Toggle fonksiyonu
-TeamCheckButton.MouseButton1Click:Connect(function()
-	GUI.TeamCheckEnabled = not GUI.TeamCheckEnabled
-	TeamCheckButton.Text = "Team Check: " .. (GUI.TeamCheckEnabled and "ON" or "OFF")
-end)
-
--- Sürükleme özelliği
-local dragging
-local dragInput
-local dragStart
-local startPos
-
-local function update(input)
-	local delta = input.Position - dragStart
-	Frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+-- Modern GUI oluşturma fonksiyonu
+local function CreateModernGUI()
+	local ScreenGui = Instance.new("ScreenGui")
+	ScreenGui.Name = "ModernAimbotGUI"
+	ScreenGui.Parent = CoreGui
+	
+	-- Ana Frame
+	local MainFrame = Instance.new("Frame")
+	MainFrame.Name = "MainFrame"
+	MainFrame.Size = UDim2.new(0, 250, 0, 150)
+	MainFrame.Position = UDim2.new(0.8, 0, 0.5, 0)
+	MainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+	MainFrame.BorderSizePixel = 0
+	MainFrame.Parent = ScreenGui
+	
+	-- Yuvarlatılmış köşeler
+	local UICorner = Instance.new("UICorner")
+	UICorner.CornerRadius = UDim.new(0, 10)
+	UICorner.Parent = MainFrame
+	
+	-- Başlık
+	local TitleBar = Instance.new("Frame")
+	TitleBar.Name = "TitleBar"
+	TitleBar.Size = UDim2.new(1, 0, 0, 30)
+	TitleBar.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+	TitleBar.BorderSizePixel = 0
+	TitleBar.Parent = MainFrame
+	
+	local TitleCorner = Instance.new("UICorner")
+	TitleCorner.CornerRadius = UDim.new(0, 10)
+	TitleCorner.Parent = TitleBar
+	
+	local TitleText = Instance.new("TextLabel")
+	TitleText.Text = "Aimbot Controls"
+	TitleText.Size = UDim2.new(1, 0, 1, 0)
+	TitleText.BackgroundTransparency = 1
+	TitleText.TextColor3 = Color3.fromRGB(255, 255, 255)
+	TitleText.TextSize = 16
+	TitleText.Font = Enum.Font.GothamBold
+	TitleText.Parent = TitleBar
+	
+	-- Team Check Toggle
+	local TeamCheckButton = Instance.new("TextButton")
+	TeamCheckButton.Name = "TeamCheckButton"
+	TeamCheckButton.Size = UDim2.new(0.9, 0, 0, 35)
+	TeamCheckButton.Position = UDim2.new(0.05, 0, 0.3, 0)
+	TeamCheckButton.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+	TeamCheckButton.Text = "Team Check: ON"
+	TeamCheckButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+	TeamCheckButton.TextSize = 14
+	TeamCheckButton.Font = Enum.Font.GothamSemibold
+	TeamCheckButton.Parent = MainFrame
+	
+	local ButtonCorner = Instance.new("UICorner")
+	ButtonCorner.CornerRadius = UDim.new(0, 8)
+	ButtonCorner.Parent = TeamCheckButton
+	
+	-- ESP Toggle
+	local ESPButton = Instance.new("TextButton")
+	ESPButton.Name = "ESPButton"
+	ESPButton.Size = UDim2.new(0.9, 0, 0, 35)
+	ESPButton.Position = UDim2.new(0.05, 0, 0.6, 0)
+	ESPButton.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+	ESPButton.Text = "ESP: ON"
+	ESPButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+	ESPButton.TextSize = 14
+	ESPButton.Font = Enum.Font.GothamSemibold
+	ESPButton.Parent = MainFrame
+	
+	local ESPButtonCorner = Instance.new("UICorner")
+	ESPButtonCorner.CornerRadius = UDim.new(0, 8)
+	ESPButtonCorner.Parent = ESPButton
+	
+	-- Hover ve Click efektleri
+	local function CreateButtonEffect(button)
+		local originalColor = button.BackgroundColor3
+		
+		button.MouseEnter:Connect(function()
+			TweenService:Create(button, TweenInfo.new(0.2), {
+				BackgroundColor3 = Color3.fromRGB(55, 55, 55)
+			}):Play()
+		end)
+		
+		button.MouseLeave:Connect(function()
+			TweenService:Create(button, TweenInfo.new(0.2), {
+				BackgroundColor3 = originalColor
+			}):Play()
+		end)
+		
+		button.MouseButton1Down:Connect(function()
+			TweenService:Create(button, TweenInfo.new(0.1), {
+				BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+			}):Play()
+		end)
+		
+		button.MouseButton1Up:Connect(function()
+			TweenService:Create(button, TweenInfo.new(0.1), {
+				BackgroundColor3 = Color3.fromRGB(55, 55, 55)
+			}):Play()
+		end)
+	end
+	
+	CreateButtonEffect(TeamCheckButton)
+	CreateButtonEffect(ESPButton)
+	
+	-- Buton fonksiyonları
+	TeamCheckButton.MouseButton1Click:Connect(function()
+		GUI.TeamCheckEnabled = not GUI.TeamCheckEnabled
+		TeamCheckButton.Text = "Team Check: " .. (GUI.TeamCheckEnabled and "ON" or "OFF")
+	end)
+	
+	ESPButton.MouseButton1Click:Connect(function()
+		GUI.ESPEnabled = not GUI.ESPEnabled
+		ESPButton.Text = "ESP: " .. (GUI.ESPEnabled and "ON" or "OFF")
+		if not GUI.ESPEnabled then
+			CleanBeams()
+		end
+	end)
+	
+	-- Sürükleme özelliği
+	local dragging
+	local dragInput
+	local dragStart
+	local startPos
+	
+	local function update(input)
+		local delta = input.Position - dragStart
+		MainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+	end
+	
+	TitleBar.InputBegan:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 then
+			dragging = true
+			dragStart = input.Position
+			startPos = MainFrame.Position
+		end
+	end)
+	
+	TitleBar.InputChanged:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseMovement then
+			dragInput = input
+		end
+	end)
+	
+	UserInputService.InputChanged:Connect(function(input)
+		if input == dragInput and dragging then
+			update(input)
+		end
+	end)
+	
+	UserInputService.InputEnded:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 then
+			dragging = false
+		end
+	end)
+	
+	return ScreenGui
 end
-
-Frame.InputBegan:Connect(function(input)
-	if input.UserInputType == Enum.UserInputType.MouseButton1 then
-		dragging = true
-		dragStart = input.Position
-		startPos = Frame.Position
-	end
-end)
-
-Frame.InputChanged:Connect(function(input)
-	if input.UserInputType == Enum.UserInputType.MouseMovement then
-		dragInput = input
-	end
-end)
-
-UserInputService.InputChanged:Connect(function(input)
-	if input == dragInput and dragging then
-		update(input)
-	end
-end)
-
-UserInputService.InputEnded:Connect(function(input)
-	if input.UserInputType == Enum.UserInputType.MouseButton1 then
-		dragging = false
-	end
-end)
 
 local function UpdateScreenBeamPosition()
 	local viewportSize = Camera.ViewportSize
@@ -383,35 +481,22 @@ end
 local Load = function()
 	OriginalSensitivity = __index(UserInputService, "MouseDeltaSensitivity")
 	
-	-- GUI'yi oluştur
-	if not game.CoreGui:FindFirstChild("AimbotGUI") then
-		local ScreenGui = Instancenew("ScreenGui")
-		ScreenGui.Name = "AimbotGUI"
-		ScreenGui.Parent = game.CoreGui
-
-		local Frame = Instancenew("Frame")
-		Frame.Size = UDim2.new(0, 200, 0, 100)
-		Frame.Position = UDim2.new(0.8, 0, 0.5, 0)
-		Frame.BackgroundColor3 = Color3fromRGB(30, 30, 30)
-		Frame.BorderSizePixel = 0
-		Frame.Parent = ScreenGui
-
-		local TeamCheckButton = Instancenew("TextButton")
-		TeamCheckButton.Size = UDim2.new(0.8, 0, 0.3, 0)
-		TeamCheckButton.Position = UDim2.new(0.1, 0, 0.1, 0)
-		TeamCheckButton.BackgroundColor3 = Color3fromRGB(40, 40, 40)
-		TeamCheckButton.Text = "Team Check: ON"
-		TeamCheckButton.TextColor3 = Color3fromRGB(255, 255, 255)
-		TeamCheckButton.Parent = Frame
-
-		TeamCheckButton.MouseButton1Click:Connect(function()
-			GUI.TeamCheckEnabled = not GUI.TeamCheckEnabled
-			TeamCheckButton.Text = "Team Check: " .. (GUI.TeamCheckEnabled and "ON" or "OFF")
+	-- Eski GUI'yi temizle
+	if CoreGui:FindFirstChild("ModernAimbotGUI") then
+		CoreGui.ModernAimbotGUI:Destroy()
+	end
+	
+	-- Yeni GUI'yi oluştur
+	CreateModernGUI()
+	
+	-- ESP'yi başlat
+	if not ServiceConnections.ESPConnection then
+		ServiceConnections.ESPConnection = RunService.RenderStepped:Connect(function()
+			if GUI.ESPEnabled then
+				UpdateESP()
+			end
 		end)
 	end
-
-	-- ESP'yi başlat
-	StartESP()
 
 	local Settings, FOVCircle, FOVCircleOutline, FOVSettings, Offset = Environment.Settings, Environment.FOVCircle, Environment.FOVCircleOutline, Environment.FOVSettings
 
@@ -531,8 +616,8 @@ function Environment.Exit(self)
 	end
 
 	-- GUI'yi temizle
-	if game.CoreGui:FindFirstChild("AimbotGUI") then
-		game.CoreGui.AimbotGUI:Destroy()
+	if CoreGui:FindFirstChild("ModernAimbotGUI") then
+		CoreGui.ModernAimbotGUI:Destroy()
 	end
 
 	-- BeamFolder'ı temizle
